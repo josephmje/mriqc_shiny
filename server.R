@@ -3,21 +3,22 @@
 
 library(shiny)
 library(dplyr)
+library(readr)
 library(plotly)
 library(wesanderson)
 
 source('read_data.R')
 
 shinyServer(function(session, input, output) {
-    
+
     observe({
         req(c(input$study))
-        
+
         update_site <- mriqc %>%
             filter(study %in% input$study) %>%
             select(site) %>%
             unlist()
-        
+
         updateSelectizeInput(session,
                             inputId = "site",
                             label = "Select site(s):",
@@ -26,13 +27,13 @@ shinyServer(function(session, input, output) {
 
     observe({
         req(c(input$study, input$site))
-        
+
         update_group <- mriqc %>%
             filter(study %in% input$study,
                    site %in% input$site) %>%
             select(diagnosis) %>%
             unlist()
-        
+
         updateSelectizeInput(session,
                              inputId = "diagnosis",
                              label = "Select participant group:",
@@ -41,7 +42,7 @@ shinyServer(function(session, input, output) {
 
     observe({
         req(c(input$study, input$site, input$diagnosis, input$modality))
-        
+
         update_scan <- mriqc %>%
             filter(study %in% input$study,
                    site %in% input$site,
@@ -49,43 +50,44 @@ shinyServer(function(session, input, output) {
                    modality %in% input$modality) %>%
             select(scan_type) %>%
             unlist()
-        
-        updateSelectizeInput(session,
-                             inputId = "scan_type",
-                             label = "Select scan type(s):",
-                             choices = unique(update_scan))
-    })    
-    
+
+        updateSelectInput(session,
+                          inputId = "scan_type",
+                          label = "Select scan type(s):",
+                          choices = unique(update_scan))
+    })
+
     observe({
         update_metric <- mriqc %>%
             filter(modality == input$modality) %>%
             select(metric) %>%
             unlist()
-        
+
         updateSelectInput(session,
                           inputId = "y",
                           label = "Y-axis:",
                           choices = unique(update_metric))
     })
-    
-    dataset <- 
+
+    dataset <-
         reactive({
             req(c(input$study, input$site, input$diagnosis, input$modality, input$scan_type))
-            
-            mriqc %>% 
+
+            mriqc %>%
                 filter(study %in% input$study,
                        site %in% input$site,
                        diagnosis %in% input$diagnosis,
                        modality %in% input$modality,
                        scan_type %in% input$scan_type,
-                       metric == input$y) 
+                       metric == input$y,
+                       fd_threshold %in% c(NA, "0.02 mm"))
             })
 
     demographics <-
         reactive({
             req(c(input$study, input$site, input$diagnosis, input$modality, input$scan_type))
-            
-            mriqc %>% 
+
+            mriqc %>%
                 filter(study %in% input$study,
                        site %in% input$site,
                        diagnosis %in% input$diagnosis,
@@ -100,105 +102,108 @@ shinyServer(function(session, input, output) {
                        Group = diagnosis,
                        Visit = session_id,
                        `Total Number Scanned` = n) %>%
-                arrange(Study, desc(`Total Number Scanned`))             
-        })
-    
-    anat_dataset <- 
-        reactive({
-            req(c(input$study, input$site, input$diagnosis, input$scan_type))
-            
-            anat_report %>% 
-                filter(study %in% input$study,
-                       site %in% input$site,
-                       diagnosis %in% input$diagnosis,
-                       scan_type %in% input$scan_type)
+                arrange(Study, desc(`Total Number Scanned`))
         })
 
-    bold_dataset <- 
+    anat_dataset <-
         reactive({
             req(c(input$study, input$site, input$diagnosis, input$scan_type))
-            
-            bold_report %>% 
+
+            anat_report %>%
                 filter(study %in% input$study,
                        site %in% input$site,
                        diagnosis %in% input$diagnosis,
-                       scan_type %in% input$scan_type) 
-        })       
+                       scan_type %in% input$scan_type) %>%
+                select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, everything(), -new_id)
+        })
+
+    bold_dataset <-
+        reactive({
+            req(c(input$study, input$site, input$diagnosis, input$scan_type))
+
+            bold_report %>%
+                filter(study %in% input$study,
+                       site %in% input$site,
+                       diagnosis %in% input$diagnosis,
+                       scan_type %in% input$scan_type) %>%
+                select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, fd_threshold, everything(), -new_id)
+        })
 
     output$plot_metric <- renderPlotly({
-        
+
         validate(need(input$x=="scan_type", message=FALSE))
-        
-        plot_ly(dataset(), x = ~site, y = ~measurement,
+
+        plot_ly(dataset(),
+                x = ~site, y = ~measurement,
                 type = 'box', boxpoints = 'all', jitter = 0.3, pointpos = 0,
                 hoverinfo = 'text',
-                text = ~paste(' SubjectID: ', subject_id,
+                text = ~paste(' SubjectID: ', new_id,
                               '<br> Diagnosis: ', diagnosis,
                               '<br>', metric, ': ', measurement),
-                color = ~study, colors = "Spectral",
-                mode = 'markers',
-                marker = list(color = "#4c4c4c")) %>%
-            layout(boxmode = 'group',
-                   font = t,
-                   xaxis = list(title = 'Site'),
-                   yaxis = list(title = ~metric)) %>%
-            config(displayModeBar = FALSE)
-        })    
+                #mode = 'markers',
+                #marker = list(color = "#4c4c4c"),
+                #symbol = ~diagnos is, symbols = c('circle', 'square'),
+                color = ~study, colors = "Spectral") %>%
+        layout(boxmode = 'group',
+               xaxis = list(title = 'Site'),
+               yaxis = list(title = input$y)) %>%
+        config(displayModeBar = FALSE)
+
+        })
 
     output$plot_date <- renderPlotly({
-        
+
         validate(need(input$x=="date", message=FALSE))
-        
-        plot_ly(dataset(), x = ~date, y = ~measurement,
+
+        plot_ly(dataset(),
+                x = ~date, y = ~measurement,
                 type = 'scatter',
                 hoverinfo = 'text',
-                text = ~paste(' SubjectID: ', subject_id,
+                text = ~paste(' SubjectID: ', new_id,
                               '<br> Diagnosis: ', diagnosis,
                               '<br>', metric, ': ', measurement),
                 color = ~study, colors = "Spectral") %>%
-            layout(font = t,
-                   xaxis = list(title = 'Date'),
-                   yaxis = list(title = ~metric)) %>%
-            config(displayModeBar = FALSE)
+        layout(xaxis = list(title = 'Date'),
+               yaxis = list(title = ~metric)) %>%
+        config(displayModeBar = FALSE)
+
     })
-    
-        
-    
-    output$plot_anat_metric <- renderPlotly({
-        
-        validate(need(input$modality=="anat", message=FALSE))
-        validate(need(input$x=="scan_type", message=FALSE))
-        
-        subplot(plot_ly(anat_dataset(), 
-                        x = ~site, y = ~input$y, 
+
+    output$plot_fd <- renderPlotly({
+
+        validate(need(input$modality=="bold", message=FALSE))
+        validate(need(input$y %in% c("fd_num", "fd_perc"), message=FALSE))
+
+        subplot(plot_ly(bold_dataset(),
+                        x = ~site, y = ~input$y,
                         type = 'box', boxpoints = 'all', jitter = 0.3, pointpos = 0,
                         hoverinfo = 'text',
                         text = ~paste(' SubjectID: ', new_id,
                                       '<br> Diagnosis: ', diagnosis,
-                                      '<br> Measure: ', input$y),   
+                                      '<br> Measure: ', input$y),
                         #mode = 'markers',
                         #marker = list(color = "#4c4c4c"),
                         #symbol = ~diagnos is, symbols = c('circle', 'square'),
                         color = ~study, colors = "Spectral",
                         legendgroup = ~study) %>%
                     layout(boxmode = 'group',
-                           list(text = 'T1w'),
-                           xaxis = list(title = 'Site'),
+                           list(text = '0.02 mm'),
+                           xaxis = list(title = 'FD Threshold'),
                            yaxis = list(title = input$y)) %>%
                     config(displayModeBar = FALSE),
-                plot_ly(anat_dataset(), 
-                        x = ~site, y = ~cjv, 
+                plot_ly(bold_dataset(),
+                        x = ~site, y = ~input$y,
                         type = 'box', boxpoints = 'all', jitter = 0.3, pointpos = 0,
                         hoverinfo = 'text',
-                        text = ~paste(' SubjectID: ', subject_id,
+                        text = ~paste(' SubjectID: ', new_id,
                                       '<br> Diagnosis: ', diagnosis,
-                                      '<br> Measure: ', input$y),  
+                                      '<br> Measure: ', input$y),
                         color = ~study, colors = "Spectral",
                         legendgroup = ~study,
                         showlegend = F) %>%
                     layout(boxmode = 'group',
-                           list(text = 'T2w'),
-                           xaxis = list(title = 'Site'),
+                           list(text = '0.05 mm'),
+                           xaxis = list(title = 'FD Threshold'),
                            yaxis = list(title = input$y)) %>%
                     config(displayModeBar = FALSE),
                 nrows = 1, shareX = TRUE)
@@ -206,6 +211,32 @@ shinyServer(function(session, input, output) {
 
     output$summary_table <- renderTable({
         demographics()
-        }, striped = FALSE, hover = TRUE, spacing = "l", align = "lcccr", digits = 4, width = "90%")
+        }, striped = FALSE, hover = TRUE, spacing = "l", align = "lcccr", digits = 4, width = "90%"
+        )
+
+    output$anat_data_table <- renderDataTable({
+        anat_dataset()
+    })
+
+    output$bold_data_table <- renderDataTable({
+        bold_dataset()
+    })
+    
+   # output$download_data <- downloadHandler(
+#        if (input$modality == "anat") {
+ #           filename = 'anat.csv'
+ #           }
+  #      if (input$modality == "bold") {
+   #         filename = 'bold.csv'
+    #    },
+     #   content = function(con) {
+      #      if (input$modality == "anat") {
+       #         write_csv(anat_dataset(), con)
+        #    }
+         #   if (input$modality == "bold") {
+          #      write_csv(bold_dataset(), con)
+           # }
+    #    }
+    #)
 
 })
