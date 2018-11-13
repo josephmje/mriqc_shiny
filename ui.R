@@ -5,6 +5,7 @@ library(shiny)
 library(plotly)
 library(DT)
 library(shinythemes)
+library(shinycssloaders)
 
 source("read_data.R")
 
@@ -25,7 +26,7 @@ shinyUI(fluidPage(
     sidebarLayout(
 
         # Inputs
-        sidebarPanel(
+        sidebarPanel(width = 3,
 
             wellPanel(
 
@@ -52,9 +53,10 @@ shinyUI(fluidPage(
                             choices = c("Anatomical" = "anat",
                                         "Functional" = "bold")),
 
-                selectInput(inputId = "scan_type",
-                            label = "Select scan type(s):",
-                            choices = NULL)
+                selectizeInput(inputId = "scan_type",
+                              label = "Select scan type(s):",
+                              choices = NULL,
+                              multiple = TRUE)
                 ),
 
             wellPanel(
@@ -76,7 +78,7 @@ shinyUI(fluidPage(
         ),
 
         # Outputs
-        mainPanel(
+        mainPanel(width = 9,
 
             #tags$style(type="text/css",
             #           ".shiny-output-error { visibility: hidden; }",
@@ -85,44 +87,44 @@ shinyUI(fluidPage(
 
             tabsetPanel(type = "tabs",
                         tabPanel("Plot",
-
+                                 
                                  conditionalPanel(
                                      condition = "input.x == 'scan_type'",
-                                     plotlyOutput("plot_metric")
+                                     withSpinner(plotlyOutput("plot_metric"), color = "#778899")
                                      ),
 
                                  conditionalPanel(
                                      condition = "input.y == 'fd_num' || input.y == 'fd_perc'",
-                                     plotlyOutput("plot_fd")
+                                     withSpinner(plotlyOutput("plot_fd"), color = "#778899")
                                      ),
 
                                  conditionalPanel(
                                      condition = "input.x == 'date'",
-                                     plotlyOutput("plot_date")
+                                     withSpinner(plotlyOutput("plot_date"), color = "#778899")
                                      )
                                  ),
 
                         tabPanel("Summary",
                                  tableOutput(outputId = "summary_table")
-                                 ))#,
+                                 ),
 
-              #          tabPanel("Data",
-#
-#                                 conditionalPanel(
-#                                     condition = "input.modality == 'anat'",
-#                                     dataTableOutput(outputId = "anat_data_table"),
-#                                     downloadButton("download_data", "Download")
-#                                 ),
-#
-#                                 conditionalPanel(
-#                                     condition = "input.modality == 'bold'",
-#                                     dataTableOutput(outputId = "bold_data_table"),
-#                                     downloadButton("download_data", "Download")
-#                                 )
-                        )
-                                 
+                        tabPanel("Data",
+
+                                 conditionalPanel(
+                                     condition = "input.modality == 'anat'",
+                                     dataTableOutput(outputId = "anat_data_table"),
+                                     downloadButton("download_anat", "Download")
+                                 ),
+
+                                 conditionalPanel(
+                                     condition = "input.modality == 'bold'",
+                                     dataTableOutput(outputId = "bold_data_table"),
+                                     downloadButton("download_bold", "Download")
+                                 )
+                                 )
+                                 )
             )
 
         )
     )
-
+    )

@@ -1,6 +1,13 @@
 library(tidyverse)
 library(stringr)
 
+redcap_export <-
+  read_csv("data/redcap/spins.csv") %>%
+  mutate(new_id = paste(record_id, "01", sep = "_"),
+         diagnosis = case_when(redcap_event_name == "case_arm_2" ~ "Case",
+                               redcap_event_name == "control_arm_1" ~ "Control")) %>%
+  select(new_id, diagnosis, mri_doa)
+
 xnat_sessions <-
   # read in all csv files exported from XNAT
   map_df(
@@ -17,13 +24,18 @@ xnat_sessions <-
   group_by(new_id) %>%
   top_n(1, date) %>%
   arrange(new_id) %>%
-  mutate(diagnosis = case_when(study %in% c("SPASD", "CLZ") & str_detect(participant_id, "P00") ~ "Pilot",
-                               study == "SPASD" & participant_id %in% c("0007") ~ "Control",
-                               study == "SPINS" & str_detect(participant_id, "P00") ~ "Travelling Phantom",
-                               study == "SPINS" & str_detect(participant_id, "P99") ~ "Pilot",
-                               study == "SPINS" & participant_id %in% c("0178") ~ "Control",
-                               study == "OPT" & str_detect(participant_id, "UT9999") ~ "Pilot",
-                               study == "CLZ" & str_detect(participant_id, "^6") ~ "Control"),
+  left_join(redcap_export) %>%
+  mutate(date = as.Date(ifelse(date == "1900-01-01", mri_doa, 
+                               ifelse(date == "1990-01-01", mri_doa, date)), origin = "1970-01-01")) %>%
+  select(-mri_doa) %>%
+  mutate(diagnosis = ifelse(study %in% c("SPASD", "CLZ") & str_detect(participant_id, "P00"), "Pilot",
+                            ifelse(study == "SPASD" & participant_id %in% c("0007"), "Control",
+                                   ifelse(study == "SPINS" & str_detect(participant_id, "P00"), "Travelling Phantom",
+                                          ifelse(study == "SPINS" & str_detect(participant_id, "P99"), "Pilot",
+                                                 ifelse(study == "SPINS" & participant_id %in% c("0178"), "Control",
+                                                        ifelse(study == "OPT" & str_detect(participant_id, "UT9999"), "Pilot",
+                                                               ifelse(study == "CLZ" & str_detect(participant_id, "^6"), "Control",
+                                                                      diagnosis))))))),
          diagnosis = ifelse(is.na(diagnosis), "Case", diagnosis))
 
 anat_report <-

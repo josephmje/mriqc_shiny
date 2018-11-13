@@ -12,122 +12,128 @@ source('read_data.R')
 shinyServer(function(session, input, output) {
 
     observe({
-        req(c(input$study))
-
-        update_site <- mriqc %>%
-            filter(study %in% input$study) %>%
-            select(site) %>%
-            unlist()
-
-        updateSelectizeInput(session,
-                            inputId = "site",
-                            label = "Select site(s):",
-                            choices = unique(update_site))
-    })
-
-    observe({
-        req(c(input$study, input$site))
-
-        update_group <- mriqc %>%
-            filter(study %in% input$study,
-                   site %in% input$site) %>%
-            select(diagnosis) %>%
-            unlist()
-
-        updateSelectizeInput(session,
-                             inputId = "diagnosis",
-                             label = "Select participant group:",
-                             choices = unique(update_group))
-    })
+      req(input$study)
+      
+      update_site <- mriqc %>%
+        filter(study %in% input$study) %>%
+        select(site) %>%
+        unlist() %>%
+        unique()
+      
+      updateSelectizeInput(session,
+                           inputId = "site",
+                           label = "Select site(s):",
+                           choices = update_site)
+      })
 
     observe({
-        req(c(input$study, input$site, input$diagnosis, input$modality))
-
-        update_scan <- mriqc %>%
-            filter(study %in% input$study,
-                   site %in% input$site,
-                   diagnosis %in% input$diagnosis,
-                   modality %in% input$modality) %>%
-            select(scan_type) %>%
-            unlist()
-
-        updateSelectInput(session,
-                          inputId = "scan_type",
-                          label = "Select scan type(s):",
-                          choices = unique(update_scan))
-    })
+      req(input$study, input$site)
+      
+      update_group <- mriqc %>%
+        filter(study %in% input$study,
+               site %in% input$site) %>%
+        select(diagnosis) %>%
+        unlist() %>%
+        unique()
+      
+      updateSelectizeInput(session,
+                           inputId = "diagnosis",
+                           label = "Select participant group:",
+                           choices = update_group)
+      })
 
     observe({
-        update_metric <- mriqc %>%
-            filter(modality == input$modality) %>%
-            select(metric) %>%
-            unlist()
+      req(input$study, input$site, input$diagnosis, input$modality)
+      
+      update_scan <- mriqc %>%
+        filter(study %in% input$study,
+               site %in% input$site,
+               diagnosis %in% input$diagnosis,
+               modality %in% input$modality) %>%
+        select(scan_type) %>%
+        unlist() %>%
+        unique()
+      
+      updateSelectInput(session,
+                        inputId = "scan_type",
+                        label = "Select scan type(s):",
+                        choices = update_scan)
+      })
 
-        updateSelectInput(session,
-                          inputId = "y",
-                          label = "Y-axis:",
-                          choices = unique(update_metric))
-    })
+    observe({
+      req(input$modality)
+      
+      update_metric <- mriqc %>%
+        filter(modality == input$modality) %>%
+        select(metric) %>%
+        unlist() %>%
+        unique()
+      
+      updateSelectInput(session,
+                        inputId = "y",
+                        label = "Y-axis:",
+                        choices = update_metric)
+      })
 
     dataset <-
-        reactive({
-            req(c(input$study, input$site, input$diagnosis, input$modality, input$scan_type))
-
-            mriqc %>%
-                filter(study %in% input$study,
-                       site %in% input$site,
-                       diagnosis %in% input$diagnosis,
-                       modality %in% input$modality,
-                       scan_type %in% input$scan_type,
-                       metric == input$y,
-                       fd_threshold %in% c(NA, "0.02 mm"))
-            })
-
+      reactive({
+        req(input$study, input$site, input$diagnosis, input$modality, input$scan_type)
+        
+        mriqc %>%
+          filter(study %in% input$study,
+                 site %in% input$site,
+                 diagnosis %in% input$diagnosis,
+                 modality %in% input$modality,
+                 scan_type %in% input$scan_type,
+                 metric == input$y,
+                 fd_threshold %in% c(NA, "0.2 mm"))
+        })
+    
     demographics <-
-        reactive({
-            req(c(input$study, input$site, input$diagnosis, input$modality, input$scan_type))
-
-            mriqc %>%
-                filter(study %in% input$study,
-                       site %in% input$site,
-                       diagnosis %in% input$diagnosis,
-                       modality %in% input$modality,
-                       scan_type %in% input$scan_type) %>%
-                select(study, site, subject_id, session_id, diagnosis) %>%
-                unique() %>%
-                group_by(study, site, diagnosis, session_id) %>%
-                count() %>%
-                rename(Study = study,
-                       Site = site,
-                       Group = diagnosis,
-                       Visit = session_id,
-                       `Total Number Scanned` = n) %>%
-                arrange(Study, desc(`Total Number Scanned`))
+      reactive({
+        req(input$study, input$site, input$diagnosis, input$modality, input$scan_type)
+        
+        mriqc %>%
+          filter(study %in% input$study,
+                 site %in% input$site,
+                 diagnosis %in% input$diagnosis,
+                 modality %in% input$modality,
+                 scan_type %in% input$scan_type) %>%
+          select(study, site, subject_id, session_id, diagnosis) %>%
+          unique() %>%
+          group_by(study, site, diagnosis, session_id) %>%
+          count() %>%
+          rename(Study = study,
+                 Site = site,
+                 Group = diagnosis,
+                 Visit = session_id,
+                 `Total Number Scanned` = n) %>%
+          arrange(Study, Group, Site, Visit)
         })
 
     anat_dataset <-
         reactive({
-            req(c(input$study, input$site, input$diagnosis, input$scan_type))
-
-            anat_report %>%
-                filter(study %in% input$study,
-                       site %in% input$site,
-                       diagnosis %in% input$diagnosis,
-                       scan_type %in% input$scan_type) %>%
-                select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, everything(), -new_id)
-        })
+          req(input$study, input$site, input$diagnosis, input$scan_type)
+          
+          anat_report %>%
+            filter(study %in% input$study,
+                   site %in% input$site,
+                   diagnosis %in% input$diagnosis,
+                   scan_type %in% input$scan_type) %>%
+            select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, everything(), -new_id)
+          })
 
     bold_dataset <-
         reactive({
-            req(c(input$study, input$site, input$diagnosis, input$scan_type))
-
-            bold_report %>%
-                filter(study %in% input$study,
-                       site %in% input$site,
-                       diagnosis %in% input$diagnosis,
-                       scan_type %in% input$scan_type) %>%
-                select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, fd_threshold, everything(), -new_id)
-        })
+          req(input$study, input$site, input$diagnosis, input$scan_type)
+          
+          bold_report %>%
+            filter(study %in% input$study,
+                   site %in% input$site,
+                   diagnosis %in% input$diagnosis,
+                   scan_type %in% input$scan_type) %>%
+            select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, fd_threshold, everything(), -new_id)
+          })
 
     output$plot_metric <- renderPlotly({
 
@@ -137,18 +143,18 @@ shinyServer(function(session, input, output) {
                 x = ~site, y = ~measurement,
                 type = 'box', boxpoints = 'all', jitter = 0.3, pointpos = 0,
                 hoverinfo = 'text',
-                text = ~paste(' SubjectID: ', new_id,
+                text = ~paste(' Subject: ', new_id,
                               '<br> Diagnosis: ', diagnosis,
                               '<br>', metric, ': ', measurement),
-                #mode = 'markers',
-                #marker = list(color = "#4c4c4c"),
-                #symbol = ~diagnos is, symbols = c('circle', 'square'),
+                mode = 'markers',
+                marker = list(color = "#000",
+                              opacity = 0.5),
+                symbol = ~scan_type,
                 color = ~study, colors = "Spectral") %>%
         layout(boxmode = 'group',
                xaxis = list(title = 'Site'),
                yaxis = list(title = input$y)) %>%
-        config(displayModeBar = FALSE)
-
+        plotly::config(displayModeBar = FALSE)
         })
 
     output$plot_date <- renderPlotly({
@@ -165,7 +171,7 @@ shinyServer(function(session, input, output) {
                 color = ~study, colors = "Spectral") %>%
         layout(xaxis = list(title = 'Date'),
                yaxis = list(title = ~metric)) %>%
-        config(displayModeBar = FALSE)
+        plotly::config(displayModeBar = FALSE)
 
     })
 
@@ -221,22 +227,19 @@ shinyServer(function(session, input, output) {
     output$bold_data_table <- renderDataTable({
         bold_dataset()
     })
-    
-   # output$download_data <- downloadHandler(
-#        if (input$modality == "anat") {
- #           filename = 'anat.csv'
- #           }
-  #      if (input$modality == "bold") {
-   #         filename = 'bold.csv'
-    #    },
-     #   content = function(con) {
-      #      if (input$modality == "anat") {
-       #         write_csv(anat_dataset(), con)
-        #    }
-         #   if (input$modality == "bold") {
-          #      write_csv(bold_dataset(), con)
-           # }
-    #    }
-    #)
+
+    output$download_anat <- downloadHandler(
+        filename = 'anat.csv',
+        content = function(file) {
+          write_csv(anat_dataset(), file)
+        }
+                      )
+
+      output$download_bold <- downloadHandler(
+          filename = 'bold.csv',
+          content = function(file) {
+            write_csv(bold_dataset(), file)
+          }
+                        )
 
 })
