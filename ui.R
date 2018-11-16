@@ -87,15 +87,15 @@ shinyUI(fluidPage(
 
             tabsetPanel(type = "tabs",
                         tabPanel("Plot",
-                                 
+
+                                 #conditionalPanel(
+                                 #    condition = "input.y == 'fd_num' || input.y == 'fd_perc'",
+                                 #    withSpinner(plotlyOutput("plot_fd"), color = "#778899")
+                                 #),                                 
+                                                                  
                                  conditionalPanel(
                                      condition = "input.x == 'scan_type'",
                                      withSpinner(plotlyOutput("plot_metric"), color = "#778899")
-                                     ),
-
-                                 conditionalPanel(
-                                     condition = "input.y == 'fd_num' || input.y == 'fd_perc'",
-                                     withSpinner(plotlyOutput("plot_fd"), color = "#778899")
                                      ),
 
                                  conditionalPanel(

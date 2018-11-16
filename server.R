@@ -120,7 +120,7 @@ shinyServer(function(session, input, output) {
                    site %in% input$site,
                    diagnosis %in% input$diagnosis,
                    scan_type %in% input$scan_type) %>%
-            select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, everything(), -new_id)
+            select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, everything())
           })
 
     bold_dataset <-
@@ -132,7 +132,7 @@ shinyServer(function(session, input, output) {
                    site %in% input$site,
                    diagnosis %in% input$diagnosis,
                    scan_type %in% input$scan_type) %>%
-            select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, fd_threshold, everything(), -new_id)
+            select(study, site, diagnosis, subject_id, session_id, date, modality, scan_type, run_id, fd_threshold, everything())
           })
 
     output$plot_metric <- renderPlotly({
@@ -168,7 +168,9 @@ shinyServer(function(session, input, output) {
                 text = ~paste(' SubjectID: ', new_id,
                               '<br> Diagnosis: ', diagnosis,
                               '<br>', metric, ': ', measurement),
-                color = ~study, colors = "Spectral") %>%
+                color = ~study, colors = "Spectral",
+                mode = 'markers',
+                symbol = ~scan_type) %>%
         layout(xaxis = list(title = 'Date'),
                yaxis = list(title = ~metric)) %>%
         plotly::config(displayModeBar = FALSE)
@@ -187,14 +189,14 @@ shinyServer(function(session, input, output) {
                         text = ~paste(' SubjectID: ', new_id,
                                       '<br> Diagnosis: ', diagnosis,
                                       '<br> Measure: ', input$y),
-                        #mode = 'markers',
-                        #marker = list(color = "#4c4c4c"),
-                        #symbol = ~diagnos is, symbols = c('circle', 'square'),
+                        mode = 'markers',
+                        marker = list(color = "#4c4c4c"),
+                        symbol = ~scan_type,
                         color = ~study, colors = "Spectral",
                         legendgroup = ~study) %>%
                     layout(boxmode = 'group',
                            list(text = '0.02 mm'),
-                           xaxis = list(title = 'FD Threshold'),
+                           xaxis = list(title = 'Site'),
                            yaxis = list(title = input$y)) %>%
                     config(displayModeBar = FALSE),
                 plot_ly(bold_dataset(),
@@ -205,6 +207,9 @@ shinyServer(function(session, input, output) {
                                       '<br> Diagnosis: ', diagnosis,
                                       '<br> Measure: ', input$y),
                         color = ~study, colors = "Spectral",
+                        mode = 'markers',
+                        marker = list(color = "#4c4c4c"),
+                        symbol = ~scan_type,
                         legendgroup = ~study,
                         showlegend = F) %>%
                     layout(boxmode = 'group',
