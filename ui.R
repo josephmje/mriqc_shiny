@@ -53,10 +53,9 @@ shinyUI(fluidPage(
                             choices = c("Anatomical" = "anat",
                                         "Functional" = "bold")),
 
-                selectizeInput(inputId = "scan_type",
-                              label = "Select scan type(s):",
-                              choices = NULL,
-                              multiple = TRUE)
+                selectInput(inputId = "scan_type",
+                            label = "Select scan type(s):",
+                            choices = NULL)
                 ),
 
             wellPanel(

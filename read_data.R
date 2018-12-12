@@ -40,14 +40,18 @@ xnat_sessions <-
 
 anat_report <-
   list.files(path = "data/mriqc",
-             pattern = ".*_T.w.csv",
+             pattern = ".*_T.w.tsv",
              full.names = TRUE) %>%
-  map_df(function(x) read_csv(x) %>% mutate(filename = gsub(".csv", "", basename(x)))) %>%
+  map_df(function(x) read_tsv(x) %>% mutate(filename = gsub(".tsv", "", basename(x)))) %>%
   separate(filename, c("study", "scan_type"), sep = "_") %>%
   mutate(modality = "anat",
+         full_subject_id = str_match(bids_name, "sub-([[:alnum:]]+)_")[,2],
+         session_id = str_match(bids_name, "ses-([[:alnum:]]+)_")[,2],
+         acquisition = str_match(bids_name, "acq-([[:alnum:]]+)_")[,2],
+         run_num = str_match(bids_name, "run-([[:alnum:]]+)_")[,2],
          study = str_to_upper(study),
-         site = substr(subject_id, 1, 3),
-         subject_id = substr(subject_id, 4, 10)) %>%
+         site = substr(full_subject_id, 1, 3),
+         subject_id = substr(full_subject_id, 4, 10)) %>%
   left_join(xnat_sessions,
             by = c("subject_id" = "participant_id",
                    "session_id" = "visit",
@@ -60,14 +64,18 @@ anat_report <-
 
 bold_report <-
   list.files(path = "data/mriqc",
-             pattern = ".*bold.csv",
+             pattern = ".*bold.tsv",
              full.names = TRUE) %>%
-  map_df(function(x) read_csv(x) %>% mutate(filename = gsub(".csv", "", basename(x)))) %>%
+  map_df(function(x) read_tsv(x) %>% mutate(filename = gsub(".tsv", "", basename(x)))) %>%
   separate(filename, c("study", "fd_threshold", "modality"), sep = "_") %>%
-  rename(scan_type = task_id) %>%
-  mutate(study = str_to_upper(study),
-         site = substr(subject_id, 1, 3),
-         subject_id = substr(subject_id, 4, 10)) %>%
+  mutate(full_subject_id = str_match(bids_name, "sub-([[:alnum:]]+)_")[,2],
+         session_id = str_match(bids_name, "ses-([[:alnum:]]+)_")[,2],
+         acquisition = str_match(bids_name, "acq-([[:alnum:]]+)_")[,2],
+         run_num = str_match(bids_name, "run-([[:alnum:]]+)_")[,2],
+         scan_type = str_match(bids_name, "task-([[:alnum:]]+)_")[,2],
+         study = str_to_upper(study),
+         site = substr(full_subject_id, 1, 3),
+         subject_id = substr(full_subject_id, 4, 10)) %>%
   left_join(xnat_sessions,
             by = c("subject_id" = "participant_id",
                    "session_id" = "visit",

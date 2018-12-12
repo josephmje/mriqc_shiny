@@ -149,7 +149,6 @@ shinyServer(function(session, input, output) {
                 mode = 'markers',
                 marker = list(color = "#000",
                               opacity = 0.5),
-                symbol = ~scan_type,
                 color = ~study, colors = "Spectral") %>%
         layout(boxmode = 'group',
                xaxis = list(title = 'Site'),
@@ -169,8 +168,7 @@ shinyServer(function(session, input, output) {
                               '<br> Diagnosis: ', diagnosis,
                               '<br>', metric, ': ', measurement),
                 color = ~study, colors = "Spectral",
-                mode = 'markers',
-                symbol = ~scan_type) %>%
+                mode = 'markers') %>%
         layout(xaxis = list(title = 'Date'),
                yaxis = list(title = ~metric)) %>%
         plotly::config(displayModeBar = FALSE)
@@ -191,7 +189,6 @@ shinyServer(function(session, input, output) {
                                       '<br> Measure: ', input$y),
                         mode = 'markers',
                         marker = list(color = "#4c4c4c"),
-                        symbol = ~scan_type,
                         color = ~study, colors = "Spectral",
                         legendgroup = ~study) %>%
                     layout(boxmode = 'group',
@@ -209,7 +206,6 @@ shinyServer(function(session, input, output) {
                         color = ~study, colors = "Spectral",
                         mode = 'markers',
                         marker = list(color = "#4c4c4c"),
-                        symbol = ~scan_type,
                         legendgroup = ~study,
                         showlegend = F) %>%
                     layout(boxmode = 'group',
